@@ -1,5 +1,6 @@
 package com.example.triviaapp.ui.screens
 
+import android.util.Log
 import androidx.compose.runtime.*
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -93,6 +94,7 @@ class TriviaViewModel(private val triviaQuestionRepository: TriviaQuestionReposi
         if (correctAnswer) {
             correctAnswers += 1
         }
+        Log.d("TriviaViewModel",correctAnswers.toString())
         if(updatedIndex <= 9) {
             val newQuestion =
                 decodeQuestionObject(_triviaUiState.value.questionList!![updatedIndex])
