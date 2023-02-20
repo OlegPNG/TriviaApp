@@ -16,10 +16,7 @@ import java.io.IOException
 import com.example.triviaapp.model.Result
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.*
 import java.util.*
 import java.util.Base64.getDecoder
 
@@ -43,7 +40,8 @@ data class TriviaUiState(
     val question: Result? = null,
     val questionIndex: Int = 0,
     val answerChoices: MutableList<String>? = null,
-    val correctAnswers: Int = 0
+    val correctAnswers: Int = 0,
+    val toastMessage: MutableSharedFlow<String> = MutableSharedFlow<String>()
 )
 
 
@@ -88,11 +86,20 @@ class TriviaViewModel(private val triviaQuestionRepository: TriviaQuestionReposi
         }
     }
 
+    fun sendMessage(message:String) {
+        viewModelScope.launch {
+            _triviaUiState.value.toastMessage.emit(message)
+        }
+    }
+
     fun updateQuestion(correctAnswer: Boolean) {
         val updatedIndex = triviaUiState.value.questionIndex + 1
         var correctAnswers = triviaUiState.value.correctAnswers
         if (correctAnswer) {
             correctAnswers += 1
+            sendMessage("Correct!")
+        } else {
+            sendMessage("Wrong!")
         }
         Log.d("TriviaViewModel",correctAnswers.toString())
         if(updatedIndex <= 9) {
