@@ -1,17 +1,17 @@
 package com.example.triviaapp.ui.screens
 
-import android.util.Log
-import android.widget.Toast
+import androidx.compose.animation.*
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.Button
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.State
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -20,6 +20,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.triviaapp.R
 import com.example.triviaapp.ui.RadioButtons
+import kotlinx.coroutines.delay
+
 
 @Composable
 fun QuestionScreen(
@@ -31,7 +33,11 @@ fun QuestionScreen(
 
     when(triviaApiState) {
         is TriviaApiState.Loading -> LoadingScreen(modifier)
-        is TriviaApiState.Success -> ResultScreen(triviaUiState, modifier, onNextButtonClick)
+        is TriviaApiState.Success -> if( triviaUiState.transitionVisible.value ) {
+            AnimateTransitionScreen(triviaUiState = triviaUiState)
+        } else {
+            DisplayQuestionScreen(triviaUiState, modifier, onNextButtonClick)
+        }
         is TriviaApiState.Error -> ErrorScreen(modifier)
     }
 
@@ -52,43 +58,19 @@ fun LoadingScreen(
         )
     }
 }
-/*
-@Composable
-fun ResultScreen(triviaUiState: String, modifier: Modifier = Modifier) {
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = modifier.fillMaxSize()
-    ) {
-        Column(
-            modifier = Modifier
-                .padding(vertical=100.dp)
-        ) {
-            Text(
-                text = triviaUiState,
-                fontSize = 48.sp
-            )
-        }
-    }
-}*/
 
 @Composable
-fun ResultScreen(
+fun DisplayQuestionScreen(
     triviaUiState: TriviaUiState,
     modifier: Modifier = Modifier,
     onNextButtonClick: () -> Unit
 ) {
 
-    val context = LocalContext.current
-
-    LaunchedEffect(Unit) {
-        triviaUiState.toastMessage.collect {
-            Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
-        }
-    }
-
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = modifier.fillMaxSize().padding(24.dp)
+        modifier = modifier
+            .fillMaxSize()
+            .padding(24.dp)
     ) {
         /*Spacer(modifier = Modifier.weight(0.1f))*/
         Text(
@@ -99,7 +81,9 @@ fun ResultScreen(
             textAlign = TextAlign.Center
         )
         Column(
-            modifier = modifier.weight(1f).fillMaxWidth(),
+            modifier = modifier
+                .weight(1f)
+                .fillMaxWidth(),
             verticalArrangement = Arrangement.Bottom
         ) {
             Spacer(modifier = Modifier.height(80.dp))
@@ -109,13 +93,14 @@ fun ResultScreen(
                 modifier = Modifier.fillMaxWidth(),
                 onSelected = {
                     triviaUiState.selectedOption.value = it
-                    Log.d("QuestionScreen", triviaUiState.selectedOption.value)
                 }
             )
             Spacer(modifier = Modifier.height(40.dp))
         }
         Column(
-            modifier = Modifier.fillMaxWidth().weight(0.1f),
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(0.1f),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Button(
@@ -131,11 +116,63 @@ fun ResultScreen(
 }
 
 @Composable
+fun TransitionScreen(modifier: Modifier, correctAnswers: Int, text: String) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text,
+                fontSize = 36.sp,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+            Text(text = "$correctAnswers/10")
+        }
+
+    }
+}
+
+@Composable
 fun ErrorScreen(modifier: Modifier = Modifier) {
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier.fillMaxSize()
     ) {
         Text(stringResource(R.string.loading_failed))
+    }
+}
+
+@Composable
+fun AnimateTransitionScreen(
+    triviaUiState: TriviaUiState
+) {
+    val state = remember {
+        MutableTransitionState(false).apply {
+            targetState = true
+        }
+    }
+    val density = LocalDensity.current
+    AnimatedVisibility(
+        visibleState = state,
+        enter = slideInHorizontally {
+            with(density) { -300.dp.roundToPx()}
+        } + fadeIn(
+            initialAlpha = 0.3f
+        ),
+        exit = slideOutHorizontally {
+            200
+        } + fadeOut()
+    ) {
+        TransitionScreen(modifier = Modifier, correctAnswers = triviaUiState.correctAnswers.value, text = triviaUiState.previousResult.value)
+    }
+    LaunchedEffect(Unit) {
+        delay(2000)
+        //triviaUiState.transitionVisible.value = false
+        state.targetState = false
+        delay(300)
+        triviaUiState.transitionVisible.value = false
     }
 }

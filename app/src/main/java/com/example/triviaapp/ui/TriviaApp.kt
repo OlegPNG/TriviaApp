@@ -1,5 +1,6 @@
 package com.example.triviaapp.ui
 
+import android.util.Log
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.*
@@ -18,6 +19,7 @@ import com.example.triviaapp.ui.screens.HomeScreen
 import com.example.triviaapp.ui.screens.QuestionScreen
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.NavHost
+import com.example.triviaapp.ui.screens.ResultScreen
 
 @Composable
 fun TriviaApp(modifier: Modifier = Modifier, viewModel: TriviaViewModel, navController: NavHostController) {
@@ -50,7 +52,16 @@ fun TriviaApp(modifier: Modifier = Modifier, viewModel: TriviaViewModel, navCont
                         triviaApiState = triviaApiState.value,
                         onNextButtonClick = {
                             triviaViewModel.updateQuestion(triviaUiState.value.selectedOption.value == triviaUiState.value.question?.correct_answer)
+                            Log.d("TriviaApp", triviaUiState.value.questionIndex.toString())
+                            if(triviaUiState.value.finished.value) {
+                                navController.navigate("result")
+                            }
                         }
+                    )
+                }
+                composable("result") {
+                    ResultScreen(
+                        triviaUiState = triviaUiState.value
                     )
                 }
             }

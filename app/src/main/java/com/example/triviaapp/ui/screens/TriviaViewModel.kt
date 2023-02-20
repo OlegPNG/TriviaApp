@@ -9,15 +9,12 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.triviaapp.TriviaApplication
-import com.example.triviaapp.data.DefaultTriviaQuestionRepository
 import com.example.triviaapp.data.TriviaQuestionRepository
 import kotlinx.coroutines.launch
 import java.io.IOException
 import com.example.triviaapp.model.Result
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
+
 import kotlinx.coroutines.flow.*
-import java.util.*
 import java.util.Base64.getDecoder
 
 sealed interface TriviaApiState {
@@ -40,8 +37,10 @@ data class TriviaUiState(
     val question: Result? = null,
     val questionIndex: Int = 0,
     val answerChoices: MutableList<String>? = null,
-    val correctAnswers: Int = 0,
-    val toastMessage: MutableSharedFlow<String> = MutableSharedFlow<String>()
+    val correctAnswers: MutableState<Int> = mutableStateOf(0),
+    val transitionVisible: MutableState<Boolean> = mutableStateOf(false),
+    val previousResult: MutableState<String> = mutableStateOf(""),
+    val finished: MutableState<Boolean> = mutableStateOf(false)
 )
 
 
@@ -86,22 +85,15 @@ class TriviaViewModel(private val triviaQuestionRepository: TriviaQuestionReposi
         }
     }
 
-    fun sendMessage(message:String) {
-        viewModelScope.launch {
-            _triviaUiState.value.toastMessage.emit(message)
-        }
-    }
-
     fun updateQuestion(correctAnswer: Boolean) {
         val updatedIndex = triviaUiState.value.questionIndex + 1
-        var correctAnswers = triviaUiState.value.correctAnswers
         if (correctAnswer) {
-            correctAnswers += 1
-            sendMessage("Correct!")
+            _triviaUiState.value.correctAnswers.value += 1
+            _triviaUiState.value.previousResult.value = "Correct!"
         } else {
-            sendMessage("Wrong!")
+            _triviaUiState.value.previousResult.value = "Wrong"
         }
-        Log.d("TriviaViewModel",correctAnswers.toString())
+        _triviaUiState.value.transitionVisible.value = true
         if(updatedIndex <= 9) {
             val newQuestion =
                 decodeQuestionObject(_triviaUiState.value.questionList!![updatedIndex])
@@ -109,7 +101,6 @@ class TriviaViewModel(private val triviaQuestionRepository: TriviaQuestionReposi
                 currentState.copy(
                     questionIndex = updatedIndex,
                     question = newQuestion,
-                    correctAnswers = correctAnswers,
                     selectedOption = mutableStateOf(""),
                     answerChoices = try {
                         (newQuestion.incorrect_answers +
@@ -121,6 +112,8 @@ class TriviaViewModel(private val triviaQuestionRepository: TriviaQuestionReposi
                 )
             }
             _triviaUiState.value.answerChoices?.shuffle()
+        } else {
+            _triviaUiState.value.finished.value = true
         }
     }
 
@@ -133,7 +126,7 @@ class TriviaViewModel(private val triviaQuestionRepository: TriviaQuestionReposi
         return String(getDecoder().decode(string))
     }
 
-    private fun decodeQuestionObject(question: Result): com.example.triviaapp.model.Result {
+    private fun decodeQuestionObject(question: Result): Result {
 
         val incorrectAnswers: MutableList<String> = mutableListOf()
         for(string in question.incorrect_answers) {
